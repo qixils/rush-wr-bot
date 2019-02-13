@@ -53,51 +53,54 @@ class MyClient(discord.Client):
         checked_ids = []
         startup = True
         while not self.is_closed():
-            r=httpget("https://www.speedrun.com/api/v1/runs?status=verified&orderby=verify-date&direction=desc")
-            recent_runs=jsonget(r) # turn that json into fun python things
+            try:
+                r=httpget("https://www.speedrun.com/api/v1/runs?status=verified&orderby=verify-date&direction=desc")
+                recent_runs=jsonget(r) # turn that json into fun python things
 
-            if startup: # initial startup code
-                checked_ids.append(recent_runs["data"][0]["id"])
-                startup = False
-            else: # not initial startup code
-                finished = False
-                next_check = 0
+                if startup: # initial startup code
+                    checked_ids.append(recent_runs["data"][0]["id"])
+                    startup = False
+                else: # not initial startup code
+                    finished = False
+                    next_check = 0
 
-                while not finished: # cycles through all runs until an already processed run is reached
-                    run = recent_runs["data"][next_check]
+                    while not finished: # cycles through all runs until an already processed run is reached
+                        run = recent_runs["data"][next_check]
 
-                    if run["id"] in checked_ids:
-                        finished = True
-                    elif run["level"] is None:
-                        # current run is new, grabbing WR run to check if this is WR
-                        toprun=httpget("https://www.speedrun.com/api/v1/leaderboards/"+run["game"]+"/category/"+run["category"]+"?top=1")
-                        if jsonget(toprun)["data"]["runs"][0]["run"]["id"] == run["id"]:
-                            # this run is WR, time to grab run information
-                            game_get=httpget("https://www.speedrun.com/api/v1/games/"+run["game"])
-                            category_get=httpget("https://www.speedrun.com/api/v1/categories/"+run["category"])
-                            game=jsonget(game_get)["data"]["names"]["international"]
-                            category=jsonget(category_get)["data"]["name"]
-                            players = []
-                            for player in run["players"]:
-                                if player["rel"] == "user":
-                                    # usernames aren't provided so we need to grab them manually
-                                    playerpage=httpget(player["uri"])
-                                    players.append(jsonget(playerpage)["data"]["names"]["international"])
-                                else:
-                                    # but guests do have names
-                                    players.append(player["name"])
-                            # turning raw seconds into processed time
-                            microsec = 3 if not float(run["times"]["primary_t"]).is_integer() else 0
-                            runtime = sec2time(run["times"]["primary_t"], microsec)
-                            # finally pipe the run information into file output
-                            wr = f"{game}\n{category}\n{runtime}\n{comma(players)}\n<:PogChamp:455481013242691616>"
-                            await channel.send(wr)
-                            checked_ids.append(run["id"]) # add run to processed runs
-                    else:
-                        # run was an Individual Level run, processing but not checking for WR
-                        checked_ids.append(run["id"])
-                    next_check += 1 # increase run id to check next
+                        if run["id"] in checked_ids:
+                            finished = True
+                        elif run["level"] is None:
+                            # current run is new, grabbing WR run to check if this is WR
+                            toprun=httpget("https://www.speedrun.com/api/v1/leaderboards/"+run["game"]+"/category/"+run["category"]+"?top=1")
+                            if jsonget(toprun)["data"]["runs"][0]["run"]["id"] == run["id"]:
+                                # this run is WR, time to grab run information
+                                game_get=httpget("https://www.speedrun.com/api/v1/games/"+run["game"])
+                                category_get=httpget("https://www.speedrun.com/api/v1/categories/"+run["category"])
+                                game=jsonget(game_get)["data"]["names"]["international"]
+                                category=jsonget(category_get)["data"]["name"]
+                                players = []
+                                for player in run["players"]:
+                                    if player["rel"] == "user":
+                                        # usernames aren't provided so we need to grab them manually
+                                        playerpage=httpget(player["uri"])
+                                        players.append(jsonget(playerpage)["data"]["names"]["international"])
+                                    else:
+                                        # but guests do have names
+                                        players.append(player["name"])
+                                # turning raw seconds into processed time
+                                microsec = 3 if not float(run["times"]["primary_t"]).is_integer() else 0
+                                runtime = sec2time(run["times"]["primary_t"], microsec)
+                                # finally pipe the run information into file output
+                                wr = f"{game}\n{category}\n{runtime}\n{comma(players)}\n<:PogChamp:455481013242691616>"
+                                await channel.send(wr)
+                                checked_ids.append(run["id"]) # add run to processed runs
+                        else:
+                            # run was an Individual Level run, processing but not checking for WR
+                            checked_ids.append(run["id"])
+                        next_check += 1 # increase run id to check next
 
+            except Exception as e:
+                print(e)
             await asyncio.sleep(60)
 
 
