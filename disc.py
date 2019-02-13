@@ -45,7 +45,7 @@ class MyClient(discord.Client):
         self.bg_task = self.loop.create_task(self.my_background_task())
 
     async def on_ready(self):
-        print('Logged in as {self.user.name} ({self.user.id})\n------')
+        print(f'Logged in as {self.user.name} ({self.user.id})\n------')
 
     async def my_background_task(self):
         await self.wait_until_ready()
